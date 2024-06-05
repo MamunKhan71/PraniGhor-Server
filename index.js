@@ -28,6 +28,8 @@ async function run() {
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
         const database = client.db('PraniGhor')
         const petCollection = database.collection('pets')
+        const categoryCollection = database.collection('categories')
+
         app.get('/pets', async (req, res) => {
             const pets = await petCollection.find().toArray()
             res.send(pets)
@@ -37,6 +39,16 @@ async function run() {
 
             const result = await petCollection.find(featured).sort({ interactionCount: -1 }).toArray()
             res.send(result);
+        })
+        app.get('/filter-pet', async (req, res) => {
+            const query = req.query
+            const result = await petCollection.find(query).toArray()
+            console.log(query);
+        })
+        // category
+        app.get('/pet-category', async (req, res) => {
+            const result = await categoryCollection.find().toArray()
+            res.send(result)
         })
     } finally {
         // Ensures that the client will close when you finish/error
