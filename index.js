@@ -55,6 +55,15 @@ async function run() {
             const result = await petCollection.insertOne(newPet)
             res.send(result)
         })
+        app.get('/my-pets', async (req, res) => {
+            console.log(req.query.email);
+            const query = {
+                "postedBy.email": req.query.email
+            }
+            const result = await petCollection.find(query).toArray()
+            res.send(result)
+        })
+
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
