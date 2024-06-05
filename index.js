@@ -50,6 +50,11 @@ async function run() {
             const result = await categoryCollection.find().toArray()
             res.send(result)
         })
+        app.post('/add-pet', async (req, res) => {
+            const newPet = req.body
+            const result = await petCollection.insertOne(newPet)
+            res.send(result)
+        })
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
@@ -61,4 +66,3 @@ run().catch(console.dir);
 app.listen(port, () => {
     console.log("Running on 5000");
 })
-
