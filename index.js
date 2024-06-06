@@ -29,6 +29,7 @@ async function run() {
         const database = client.db('PraniGhor')
         const petCollection = database.collection('pets')
         const categoryCollection = database.collection('categories')
+        const requestCollection = database.collection('requests')
 
         app.get('/pets', async (req, res) => {
             const pets = await petCollection.find().toArray()
@@ -62,8 +63,17 @@ async function run() {
             const result = await petCollection.find(query).toArray()
             res.send(result)
         })
-        app.get('/adoption-requests', async (req, res) => {
-            console.log("incoming....");
+        app.post('/adoption-requests', async (req, res) => {
+            const data = req.body
+            const result = await requestCollection.insertOne(data)
+            res.send(result)
+        })
+        app.get('/my-requests', async (req, res) => {
+            console.log("incoming..");
+            const query = { "authorInfo.authorEmail": req.query.authorEmail }
+            const result = await requestCollection.find(query).toArray()
+            res.send(result)
+
         })
         app.get('/pet-details/:id', async (req, res) => {
             const result = await petCollection.findOne({ _id: new ObjectId(req.params.id) })
