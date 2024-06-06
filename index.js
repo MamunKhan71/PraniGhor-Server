@@ -30,7 +30,7 @@ async function run() {
         const petCollection = database.collection('pets')
         const categoryCollection = database.collection('categories')
         const requestCollection = database.collection('requests')
-
+        const campaignCollection = database.collection('campaigns')
         app.get('/pets', async (req, res) => {
             const pets = await petCollection.find().toArray()
             res.send(pets)
@@ -69,7 +69,6 @@ async function run() {
             res.send(result)
         })
         app.get('/my-requests', async (req, res) => {
-            console.log("incoming..");
             const query = { "authorInfo.authorEmail": req.query.authorEmail }
             const result = await requestCollection.find(query).toArray()
             res.send(result)
@@ -79,7 +78,12 @@ async function run() {
             const result = await petCollection.findOne({ _id: new ObjectId(req.params.id) })
             res.send(result)
         })
-
+        // campaign
+        app.post('/create-campaign', async (req, res) => {
+            const campaign = req.body
+            const result = await campaignCollection.insertOne(campaign)
+            res.send(result)
+        })
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
