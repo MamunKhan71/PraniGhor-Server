@@ -1,4 +1,4 @@
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require('express')
 const cors = require('cors')
 require('dotenv').config()
@@ -56,11 +56,17 @@ async function run() {
             res.send(result)
         })
         app.get('/my-pets', async (req, res) => {
-            console.log(req.query.email);
             const query = {
                 "postedBy.email": req.query.email
             }
             const result = await petCollection.find(query).toArray()
+            res.send(result)
+        })
+        app.get('/adoption-requests', async (req, res) => {
+            console.log("incoming....");
+        })
+        app.get('/pet-details/:id', async (req, res) => {
+            const result = await petCollection.findOne({ _id: new ObjectId(req.params.id) })
             res.send(result)
         })
 
