@@ -37,7 +37,6 @@ async function run() {
         })
         app.get('/featured-pets', async (req, res) => {
             const featured = { featuredStatus: true }
-
             const result = await petCollection.find(featured).sort({ interactionCount: -1 }).toArray()
             res.send(result);
         })
@@ -84,6 +83,40 @@ async function run() {
             const result = await campaignCollection.insertOne(campaign)
             res.send(result)
         })
+        app.get('/campaigns', async (req, res) => {
+            try {
+                const query = req.query.email;
+
+                if (query !== undefined) {
+                    const email = { "authorInfo.email": req.query.email };
+                    const result = await campaignCollection.find(email).toArray();
+                    return res.json(result);
+                }
+
+                const result = await campaignCollection.find().toArray();
+                res.json(result);
+            } catch (error) {
+                console.error('Error in /campaigns route:', error);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        });
+
+        app.get('/campaigns/:id', async (req, res) => {
+            const campId = req.params.id
+            const result = await campaignCollection.findOne({ _id: new ObjectId(campId) })
+            const query = {
+                "campaignCategory.value": await result.campaignCategory.value
+            }
+            const recommandations = await campaignCollection.find(query).limit(3).toArray()
+            const filteredRecommendations = recommandations.filter(recommendation => recommendation._id.toString() !== result._id.toString());
+
+            const response = {
+                actualData: result,
+                recommendedData: filteredRecommendations
+            }
+            res.send(response);
+        })
+        app.get('')
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
@@ -95,3 +128,6 @@ run().catch(console.dir);
 app.listen(port, () => {
     console.log("Running on 5000");
 })
+
+
+
