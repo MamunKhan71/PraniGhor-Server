@@ -32,7 +32,12 @@ async function run() {
         const requestCollection = database.collection('requests')
         const campaignCollection = database.collection('campaigns')
         app.get('/pets', async (req, res) => {
-            const pets = await petCollection.find().toArray()
+            const skip = parseInt(req.query.skip)
+            const size = parseInt(req.query.limit)
+            console.log(skip, size);
+            const pets = await petCollection.find().skip(skip).limit(size).toArray()
+            const petsCount = await petCollection.estimatedDocumentCount()
+            const finalResult = [...pets, { petsCount: petsCount }]
             res.send(pets)
         })
         app.get('/featured-pets', async (req, res) => {
