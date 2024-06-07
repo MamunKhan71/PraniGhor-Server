@@ -31,6 +31,17 @@ async function run() {
         const categoryCollection = database.collection('categories')
         const requestCollection = database.collection('requests')
         const campaignCollection = database.collection('campaigns')
+        const userCollection = database.collection('users')
+        // users
+        app.get('/users', async (req, res) => {
+            const result = userCollection.find().toArray()
+            res.send(result)
+        })
+        app.post('/users', async (req, res) => {
+            const users = req.body
+            const result = await userCollection.insertOne(users)
+            res.send(result)
+        })
         app.get('/pets', async (req, res) => {
             const skip = parseInt(req.query.skip)
             const size = parseInt(req.query.limit)
