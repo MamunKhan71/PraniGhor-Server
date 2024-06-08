@@ -58,7 +58,7 @@ async function run() {
         app.get('/pets', async (req, res) => {
             const skip = parseInt(req.query.skip)
             const size = parseInt(req.query.limit)
-            const pets = await petCollection.find().skip(skip).limit(size).toArray()
+            const pets = await petCollection.find({status: {$ne : 'Adopted'}}).skip(skip).limit(size).toArray()
             const petsCount = await petCollection.estimatedDocumentCount()
             const finalResult = [...pets, { petsCount: petsCount }]
             res.send(pets)
@@ -154,6 +154,35 @@ async function run() {
             console.log(option);
             const campaign = await campaignCollection.updateOne(query, option, { upsert: true })
             res.send(campaign)
+        })
+        app.get('/pet-requests', async (req, res) => {
+            const id = req.query.id
+            const petId = req.query.petId
+            // change the status
+            const query = { "postInfo.petId": petId }
+            const option1 = {
+                $set: {
+                    "postInfo.status": 'adopted'
+                }
+            }
+            const option2 = {
+                $set: {
+                    "status": 'Adopted'
+                }
+            }
+            const statusUpdate = await requestCollection.updateOne({ _id: new ObjectId(id) }, option1, { upsert: true })
+            const deleteQuery = await requestCollection.find(query).toArray()
+            const deletionIds = deleteQuery
+                .filter(doc => doc.postInfo?.status !== "adopted")
+                .map(doc => doc._id);
+            const deleteResult = await requestCollection.deleteMany({ _id: { $in: deletionIds.map(id => new ObjectId(id)) } })
+            const petUpdate = await petCollection.updateOne({ _id: new ObjectId(petId) }, option2, { upsert: true })
+            res.send(petUpdate)
+        })
+        app.delete('/delete-request', async (req, res) => {
+            const query = { _id: new ObjectId(req.query.id) }
+            const result = await requestCollection.deleteOne(query)
+            res.send(result)
         })
         app.patch('/pause-campaign', async (req, res) => {
             const query = { _id: new ObjectId(req.query.id) }
