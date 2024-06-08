@@ -32,6 +32,19 @@ async function run() {
         const requestCollection = database.collection('requests')
         const campaignCollection = database.collection('campaigns')
         const userCollection = database.collection('users')
+        const donationCollection = database.collection('donations')
+        //donations
+        app.post('/donations', async (req, res) => {
+            const data = req.body
+            const result = await donationCollection.insertOne(data)
+            res.send(result)
+        })
+        // app.get('/donations', async (req, res) => {
+        //     const query = req.query.email
+        //     if(query){
+        //         const result = await donationCollection.find({})
+        //     }
+        // })
         // users
         app.get('/users', async (req, res) => {
             const result = userCollection.find().toArray()
@@ -45,7 +58,6 @@ async function run() {
         app.get('/pets', async (req, res) => {
             const skip = parseInt(req.query.skip)
             const size = parseInt(req.query.limit)
-            console.log(skip, size);
             const pets = await petCollection.find().skip(skip).limit(size).toArray()
             const petsCount = await petCollection.estimatedDocumentCount()
             const finalResult = [...pets, { petsCount: petsCount }]
@@ -116,7 +128,44 @@ async function run() {
                 res.status(500).json({ error: 'Internal server error' });
             }
         });
-
+        app.get('/my-donation', async (req, res) => {
+            const query = { 'authorInfo.email': req.query.email }
+            const result = await campaignCollection.find(query).toArray()
+            res.send(result)
+        })
+        app.get('/edit-campaign/:id', async (req, res) => {
+            const campaign = await campaignCollection.findOne({ _id: new ObjectId(req.params.id) })
+            res.send(campaign)
+        })
+        app.patch('/edit-campaign', async (req, res) => {
+            const query = { _id: new ObjectId(req.query.id) }
+            const data = req.body
+            const option = {
+                $set: {
+                    campaignName: data.campaignName,
+                    campaignImage: data.campaignImage,
+                    campDeadline: data.campDeadline,
+                    maxDonation: data.maxDonation,
+                    campaignCategory: data.campaignCategory,
+                    shortDescription: data.shortDescription,
+                    longDescription: data.longDescription,
+                }
+            }
+            console.log(option);
+            const campaign = await campaignCollection.updateOne(query, option, { upsert: true })
+            res.send(campaign)
+        })
+        app.patch('/pause-campaign', async (req, res) => {
+            const query = { _id: new ObjectId(req.query.id) }
+            const status = req.query.newStatus;
+            const option = {
+                $set: {
+                    status: status
+                }
+            }
+            const campaign = await campaignCollection.updateOne(query, option, { upsert: true })
+            res.send(campaign)
+        })
         app.get('/campaigns/:id', async (req, res) => {
             const campId = req.params.id
             const result = await campaignCollection.findOne({ _id: new ObjectId(campId) })
