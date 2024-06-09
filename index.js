@@ -123,9 +123,17 @@ async function run() {
             res.send(result);
         })
         app.get('/filter-pet', async (req, res) => {
-            const query = req.query
-            const result = await petCollection.find(query).toArray()
-            console.log(query);
+            const query = {
+                category: req.query.category,
+                status: { $ne: 'Adopted' }
+            };
+            const result = await petCollection.find(query, { status: { $ne: 'Adopted' } }).toArray()
+            res.send(result);
+        })
+        app.get('/filter-age', async (req, res) => {
+            const query = req.query.sort
+            const result = await petCollection.find({ status: { $ne: 'Adopted' } }).sort({ age: query }).toArray()
+            res.send(result)
         })
         // category
         app.get('/pet-category', async (req, res) => {
@@ -170,6 +178,9 @@ async function run() {
             res.send(result)
         })
         app.get('/campaigns', async (req, res) => {
+            const skip = parseInt(req.query.skip)
+            const size = parseInt(req.query.limit)
+            console.log(skip, size);
             try {
                 const query = req.query.email;
 
@@ -178,17 +189,20 @@ async function run() {
                     const result = await campaignCollection.find(email).toArray();
                     return res.json(result);
                 }
-
-                const result = await campaignCollection.find({ status: { $ne: "paused" } }).toArray();
+                const result = await campaignCollection.find({ status: { $ne: "paused" } }).sort({ creationTime: -1 }).skip(skip).limit(size).toArray();
                 res.json(result);
             } catch (error) {
                 console.error('Error in /campaigns route:', error);
                 res.status(500).json({ error: 'Internal server error' });
             }
         });
+        app.get('/pet-category', async (req, res) => {
+            const result = await categoryCollection.find().toArray()
+            res.send(result)
+        })
         app.get('/my-donation', async (req, res) => {
             const query = { 'authorInfo.email': req.query.email }
-            if(query){
+            if (query) {
                 const result = await campaignCollection.find(query).toArray()
             }
             const result = await campaignCollection.find().toArray()
