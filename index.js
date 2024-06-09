@@ -46,8 +46,30 @@ async function run() {
         //     }
         // })
         // users
+        app.patch('/make-admin', async (req, res) => {
+            const id = req.body.id
+            const query = { _id: new ObjectId(id) }
+            const cursor = {
+                $set: {
+                    role: "admin"
+                }
+            }
+            const result = userCollection.updateOne(query, cursor, { upsert: true })
+            res.send(result)
+        })
+        app.patch('/remove-admin', async (req, res) => {
+            const id = req.body.id
+            const query = { _id: new ObjectId(id) }
+            const cursor = {
+                $set: {
+                    role: "user"
+                }
+            }
+            const result = userCollection.updateOne(query, cursor, { upsert: true })
+            res.send(result)
+        })
         app.get('/users', async (req, res) => {
-            const result = userCollection.find().toArray()
+            const result = await userCollection.find().toArray()
             res.send(result)
         })
         app.post('/users', async (req, res) => {
@@ -58,10 +80,42 @@ async function run() {
         app.get('/pets', async (req, res) => {
             const skip = parseInt(req.query.skip)
             const size = parseInt(req.query.limit)
-            const pets = await petCollection.find({status: {$ne : 'Adopted'}}).skip(skip).limit(size).toArray()
+            const pets = await petCollection.find({ status: { $ne: 'Adopted' } }).skip(skip).limit(size).toArray()
             const petsCount = await petCollection.estimatedDocumentCount()
             const finalResult = [...pets, { petsCount: petsCount }]
             res.send(pets)
+        })
+        app.get('/pet-data', async (req, res) => {
+            const id = req.query.id
+            const petData = await petCollection.findOne({ _id: new ObjectId(id) })
+            res.send(petData)
+        })
+        app.patch('/edit-pet', async (req, res) => {
+            const id = req.query?.id
+            const query = { _id: new ObjectId(id) }
+            const body = req.body
+            const cursor = {
+                $set: {
+                    name: body.name,
+                    age: body.age,
+                    category: body.category,
+                    categoryId: body.categoryId,
+                    image: body.image,
+                    location: body.location,
+                    shortDescription: body.shortDescription,
+                    longDescription: body.longDescription,
+                    adoptionUrgency: body.adoptionUrgency,
+                    vaccinated: body.vaccinated,
+                    neutered: body.neutered,
+                }
+            }
+            const result = await petCollection.updateOne(query, cursor, { upsert: true })
+            res.send(result);
+        })
+        app.delete('/delete-pet', async (req, res) => {
+            const id = req.query.id
+            const result = await petCollection.deleteOne({ _id: new ObjectId(id) })
+            res.send(result)
         })
         app.get('/featured-pets', async (req, res) => {
             const featured = { featuredStatus: true }
@@ -87,7 +141,11 @@ async function run() {
             const query = {
                 "postedBy.email": req.query.email
             }
-            const result = await petCollection.find(query).toArray()
+            if (query) {
+                const result = await petCollection.find(query).toArray()
+            }
+            const result = await petCollection.find().toArray()
+
             res.send(result)
         })
         app.post('/adoption-requests', async (req, res) => {
@@ -121,7 +179,7 @@ async function run() {
                     return res.json(result);
                 }
 
-                const result = await campaignCollection.find().toArray();
+                const result = await campaignCollection.find({ status: { $ne: "paused" } }).toArray();
                 res.json(result);
             } catch (error) {
                 console.error('Error in /campaigns route:', error);
@@ -130,7 +188,10 @@ async function run() {
         });
         app.get('/my-donation', async (req, res) => {
             const query = { 'authorInfo.email': req.query.email }
-            const result = await campaignCollection.find(query).toArray()
+            if(query){
+                const result = await campaignCollection.find(query).toArray()
+            }
+            const result = await campaignCollection.find().toArray()
             res.send(result)
         })
         app.get('/edit-campaign/:id', async (req, res) => {
@@ -154,6 +215,16 @@ async function run() {
             console.log(option);
             const campaign = await campaignCollection.updateOne(query, option, { upsert: true })
             res.send(campaign)
+        })
+        app.patch('/pet-status', async (req, res) => {
+            const id = req.query.id
+            const option = {
+                $set: {
+                    "status": 'Adopted'
+                }
+            }
+            const petUpdate = await petCollection.updateOne({ _id: new ObjectId(id) }, option, { upsert: true })
+            res.send(petUpdate)
         })
         app.get('/pet-requests', async (req, res) => {
             const id = req.query.id
@@ -210,7 +281,6 @@ async function run() {
             }
             res.send(response);
         })
-        app.get('')
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
