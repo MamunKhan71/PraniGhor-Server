@@ -5,6 +5,8 @@ require('dotenv').config()
 const app = express()
 const port = process.env.PORT || 5000
 const cookieParser = require('cookie-parser')
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+
 app.use(express.json())
 app.use(cookieParser())
 app.use(cors({
@@ -40,6 +42,20 @@ async function run() {
         const campaignCollection = database.collection('campaigns')
         const userCollection = database.collection('users')
         const donationCollection = database.collection('donations')
+        // payment
+        app.post('/create-payment-intent', async (req, res) => {
+            const { price } = req.body
+            const amount = parseInt(price * 100);
+            console.log(amount);
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card'],
+            })
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
+        })
         //jwt
         const verifyToken = async (req, res, next) => {
             const token = req.cookies?.token
@@ -295,7 +311,7 @@ async function run() {
             const campaign = await campaignCollection.findOne({ _id: new ObjectId(req.params.id) })
             res.send(campaign)
         })
-        app.patch('/edit-campaign', async (req, res) => {
+        app.patch('/edit-campaign', verifyToken, async (req, res) => {
             if (req.user?.email !== req.query?.email) {
                 return res.status(403).send({ message: "Forbidden Access" })
             }
@@ -362,7 +378,7 @@ async function run() {
             const result = await requestCollection.deleteOne(query)
             res.send(result)
         })
-        app.patch('/pause-campaign',verifyToken, async (req, res) => {
+        app.patch('/pause-campaign', verifyToken, async (req, res) => {
             if (req.user?.email !== req.query?.email) {
                 return res.status(403).send({ message: "Forbidden Access" })
             }
