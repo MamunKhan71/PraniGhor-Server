@@ -80,7 +80,7 @@ async function run() {
         app.get('/pets', async (req, res) => {
             const skip = parseInt(req.query.skip)
             const size = parseInt(req.query.limit)
-            const pets = await petCollection.find({ status: { $ne: 'Adopted' } }).skip(skip).limit(size).toArray()
+            const pets = await petCollection.find({ adopted: { $ne: true } }).skip(skip).limit(size).toArray()
             const petsCount = await petCollection.estimatedDocumentCount()
             const finalResult = [...pets, { petsCount: petsCount }]
             res.send(pets)
@@ -101,6 +101,7 @@ async function run() {
                     category: body.category,
                     categoryId: body.categoryId,
                     image: body.image,
+                    adopted: body.adopted,
                     location: body.location,
                     shortDescription: body.shortDescription,
                     longDescription: body.longDescription,
@@ -118,21 +119,21 @@ async function run() {
             res.send(result)
         })
         app.get('/featured-pets', async (req, res) => {
-            const featured = { featuredStatus: true }
+            const featured = { featuredStatus: true, adopted: { $ne: true } }
             const result = await petCollection.find(featured).sort({ interactionCount: -1 }).toArray()
             res.send(result);
         })
         app.get('/filter-pet', async (req, res) => {
             const query = {
                 category: req.query.category,
-                status: { $ne: 'Adopted' }
+                status: { $ne: true }
             };
-            const result = await petCollection.find(query, { status: { $ne: 'Adopted' } }).toArray()
+            const result = await petCollection.find(query, { status: { $ne: true } }).toArray()
             res.send(result);
         })
         app.get('/filter-age', async (req, res) => {
             const query = req.query.sort
-            const result = await petCollection.find({ status: { $ne: 'Adopted' } }).sort({ age: query }).toArray()
+            const result = await petCollection.find({ status: { $ne: true } }).sort({ age: query }).toArray()
             res.send(result)
         })
         // category
@@ -234,7 +235,7 @@ async function run() {
             const id = req.query.id
             const option = {
                 $set: {
-                    "status": 'Adopted'
+                    "adopted": true
                 }
             }
             const petUpdate = await petCollection.updateOne({ _id: new ObjectId(id) }, option, { upsert: true })
@@ -252,7 +253,7 @@ async function run() {
             }
             const option2 = {
                 $set: {
-                    "status": 'Adopted'
+                    "adopted": true
                 }
             }
             const statusUpdate = await requestCollection.updateOne({ _id: new ObjectId(id) }, option1, { upsert: true })
@@ -284,7 +285,8 @@ async function run() {
             const campId = req.params.id
             const result = await campaignCollection.findOne({ _id: new ObjectId(campId) })
             const query = {
-                "campaignCategory.value": await result.campaignCategory.value
+                "campaignCategory.value": await result.campaignCategory.value,
+                status: { $ne: "paused" }
             }
             const recommandations = await campaignCollection.find(query).limit(3).toArray()
             const filteredRecommendations = recommandations.filter(recommendation => recommendation._id.toString() !== result._id.toString());
