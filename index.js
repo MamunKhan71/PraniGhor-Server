@@ -4,11 +4,18 @@ const cors = require('cors')
 require('dotenv').config()
 const app = express()
 const port = process.env.PORT || 5000
+const cookieParser = require('cookie-parser')
 app.use(express.json())
-app.use(cors())
+app.use(cookieParser())
+app.use(cors({
+    origin: ['http://localhost:5173'],
+    credentials: true
+}))
 
+const jwt = require('jsonwebtoken');
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.q3zjxg2.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -33,6 +40,46 @@ async function run() {
         const campaignCollection = database.collection('campaigns')
         const userCollection = database.collection('users')
         const donationCollection = database.collection('donations')
+        //jwt
+        const verifyToken = async (req, res, next) => {
+            const token = req.cookies?.token
+            if (!token) {
+                return res.status(401).send({ message: "Unauthorized Access" })
+            }
+            jwt.verify(token, process.env.SECRET_KEY, (error, decoded) => {
+                if (error) {
+                    return res.status(401).send({ message: "Unauthorized Access" })
+                }
+                req.user = decoded
+            })
+            next()
+        }
+        const verifyAdmin = async (req, res, next) => {
+            const userEmail = req.user.email
+            const query = { userEmail: userEmail }
+            const user = await userCollection.findOne(query)
+            const isAdmin = user?.role === "admin"
+
+            if (!isAdmin) {
+                return res.status(403).send({ message: 'Forbidden access' });
+            }
+            next()
+        }
+        app.post('/jwt', async (req, res) => {
+            const user = req.body
+            const token = jwt.sign(user, process.env.SECRET_KEY, { expiresIn: '1h' })
+            res
+                .cookie('token', token, {
+                    httpOnly: true,
+                    secure: true,
+                    sameSite: 'none',
+                })
+                .send({ success: true })
+        })
+        app.post('/logout', async (req, res) => {
+            const user = req.body
+            res.clearCookie('token', { maxAge: 0 }).send({ success: true })
+        })
         //donations
         app.post('/donations', async (req, res) => {
             const data = req.body
@@ -46,7 +93,7 @@ async function run() {
         //     }
         // })
         // users
-        app.patch('/make-admin', async (req, res) => {
+        app.patch('/make-admin', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.body.id
             const query = { _id: new ObjectId(id) }
             const cursor = {
@@ -57,7 +104,7 @@ async function run() {
             const result = userCollection.updateOne(query, cursor, { upsert: true })
             res.send(result)
         })
-        app.patch('/remove-admin', async (req, res) => {
+        app.patch('/remove-admin', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.body.id
             const query = { _id: new ObjectId(id) }
             const cursor = {
@@ -68,7 +115,7 @@ async function run() {
             const result = userCollection.updateOne(query, cursor, { upsert: true })
             res.send(result)
         })
-        app.get('/users', async (req, res) => {
+        app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
             const result = await userCollection.find().toArray()
             res.send(result)
         })
@@ -141,20 +188,29 @@ async function run() {
             const result = await categoryCollection.find().toArray()
             res.send(result)
         })
-        app.post('/add-pet', async (req, res) => {
+        app.post('/add-pet', verifyToken, async (req, res) => {
+            if (req.user.email !== req.query.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
             const newPet = req.body
             const result = await petCollection.insertOne(newPet)
             res.send(result)
         })
-        app.get('/my-pets', async (req, res) => {
+        app.get('/my-pets', verifyToken, async (req, res) => {
+            if (req.user.email !== req.query.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
             const query = {
                 "postedBy.email": req.query.email
             }
-            if (query) {
-                const result = await petCollection.find(query).toArray()
+            const result = await petCollection.find(query).toArray()
+            res.send(result)
+        })
+        app.get('/all-pets', verifyToken, verifyAdmin, async (req, res) => {
+            if (req.user.email !== req.query.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
             }
             const result = await petCollection.find().toArray()
-
             res.send(result)
         })
         app.post('/adoption-requests', async (req, res) => {
@@ -203,12 +259,28 @@ async function run() {
         })
         app.get('/my-donation', async (req, res) => {
             const query = { 'authorInfo.email': req.query.email }
-            if (query) {
-                const result = await campaignCollection.find(query).toArray()
-            }
+            const result = await campaignCollection.find(query).toArray()
+            res.send(result)
+        })
+        app.get('/all-donation', verifyToken, verifyAdmin, async (req, res) => {
             const result = await campaignCollection.find().toArray()
             res.send(result)
         })
+        app.get('/users/admin/:email', verifyToken, async (req, res) => {
+            const email = req.params.email;
+            console.log(email);
+            if (email !== req.user.email) {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            const query = { userEmail: email };
+            const user = await userCollection.findOne(query);
+            let admin = false;
+            if (user) {
+                admin = user?.role === 'admin';
+            }
+            res.send({ admin });
+        })
+
         app.get('/edit-campaign/:id', async (req, res) => {
             const campaign = await campaignCollection.findOne({ _id: new ObjectId(req.params.id) })
             res.send(campaign)
