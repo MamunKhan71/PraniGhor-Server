@@ -160,7 +160,10 @@ async function run() {
             const result = await petCollection.updateOne(query, cursor, { upsert: true })
             res.send(result);
         })
-        app.delete('/delete-pet', async (req, res) => {
+        app.delete('/delete-pet', verifyToken, async (req, res) => {
+            if (req.user?.email !== req.query?.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
             const id = req.query.id
             const result = await petCollection.deleteOne({ _id: new ObjectId(id) })
             res.send(result)
@@ -213,12 +216,16 @@ async function run() {
             const result = await petCollection.find().toArray()
             res.send(result)
         })
-        app.post('/adoption-requests', async (req, res) => {
+        app.post(`/adoption-requests`, verifyToken, async (req, res) => {
+            if (req.user?.email !== req.query?.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
+            console.log("Incoming...");
             const data = req.body
             const result = await requestCollection.insertOne(data)
             res.send(result)
         })
-        app.get('/my-requests', async (req, res) => {
+        app.get(`/my-requests`, verifyToken, async (req, res) => {
             const query = { "authorInfo.authorEmail": req.query.authorEmail }
             const result = await requestCollection.find(query).toArray()
             res.send(result)
@@ -229,7 +236,10 @@ async function run() {
             res.send(result)
         })
         // campaign
-        app.post('/create-campaign', async (req, res) => {
+        app.post('/create-campaign', verifyToken, async (req, res) => {
+            if (req.user?.email !== req.query?.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
             const campaign = req.body
             const result = await campaignCollection.insertOne(campaign)
             res.send(result)
@@ -237,10 +247,8 @@ async function run() {
         app.get('/campaigns', async (req, res) => {
             const skip = parseInt(req.query.skip)
             const size = parseInt(req.query.limit)
-            console.log(skip, size);
             try {
                 const query = req.query.email;
-
                 if (query !== undefined) {
                     const email = { "authorInfo.email": req.query.email };
                     const result = await campaignCollection.find(email).toArray();
@@ -257,7 +265,7 @@ async function run() {
             const result = await categoryCollection.find().toArray()
             res.send(result)
         })
-        app.get('/my-donation', async (req, res) => {
+        app.get('/my-donation', verifyToken, async (req, res) => {
             const query = { 'authorInfo.email': req.query.email }
             const result = await campaignCollection.find(query).toArray()
             res.send(result)
@@ -268,7 +276,6 @@ async function run() {
         })
         app.get('/users/admin/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
-            console.log(email);
             if (email !== req.user.email) {
                 return res.status(403).send({ message: 'forbidden access' })
             }
@@ -281,11 +288,17 @@ async function run() {
             res.send({ admin });
         })
 
-        app.get('/edit-campaign/:id', async (req, res) => {
+        app.get('/edit-campaign/:id', verifyToken, async (req, res) => {
+            if (req.user?.email !== req.query?.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
             const campaign = await campaignCollection.findOne({ _id: new ObjectId(req.params.id) })
             res.send(campaign)
         })
         app.patch('/edit-campaign', async (req, res) => {
+            if (req.user?.email !== req.query?.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
             const query = { _id: new ObjectId(req.query.id) }
             const data = req.body
             const option = {
@@ -299,11 +312,13 @@ async function run() {
                     longDescription: data.longDescription,
                 }
             }
-            console.log(option);
             const campaign = await campaignCollection.updateOne(query, option, { upsert: true })
             res.send(campaign)
         })
-        app.patch('/pet-status', async (req, res) => {
+        app.patch('/pet-status', verifyToken, async (req, res) => {
+            if (req.user?.email !== req.query?.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
             const id = req.query.id
             const option = {
                 $set: {
@@ -313,10 +328,12 @@ async function run() {
             const petUpdate = await petCollection.updateOne({ _id: new ObjectId(id) }, option, { upsert: true })
             res.send(petUpdate)
         })
-        app.get('/pet-requests', async (req, res) => {
+        app.get('/pet-requests', verifyToken, async (req, res) => {
+            if (req.user?.email !== req.query?.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
             const id = req.query.id
             const petId = req.query.petId
-            // change the status
             const query = { "postInfo.petId": petId }
             const option1 = {
                 $set: {
@@ -337,12 +354,18 @@ async function run() {
             const petUpdate = await petCollection.updateOne({ _id: new ObjectId(petId) }, option2, { upsert: true })
             res.send(petUpdate)
         })
-        app.delete('/delete-request', async (req, res) => {
+        app.delete('/delete-request', verifyToken, async (req, res) => {
+            if (req.user?.email !== req.query?.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
             const query = { _id: new ObjectId(req.query.id) }
             const result = await requestCollection.deleteOne(query)
             res.send(result)
         })
-        app.patch('/pause-campaign', async (req, res) => {
+        app.patch('/pause-campaign',verifyToken, async (req, res) => {
+            if (req.user?.email !== req.query?.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
             const query = { _id: new ObjectId(req.query.id) }
             const status = req.query.newStatus;
             const option = {
