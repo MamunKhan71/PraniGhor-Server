@@ -9,10 +9,17 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
 app.use(express.json())
 app.use(cookieParser())
-app.use(cors({
-    origin: ['http://localhost:5173'],
-    credentials: true
-}))
+//Must remove "/" from your production URL
+app.use(
+    cors({
+        origin: [
+            "http://localhost:5173",
+            "https://pranighor-1658d.web.app",
+            "https://pranighor-1658d.firebaseapp.com",
+        ],
+        credentials: true
+    })
+);
 
 const jwt = require('jsonwebtoken');
 
@@ -27,14 +34,16 @@ const client = new MongoClient(uri, {
         deprecationErrors: true,
     }
 });
+const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+};
+//localhost:5000 and localhost:5173 are treated as same site.  so sameSite value must be strict in the development server.  in production, sameSite will be none
+// in development server secure will false.  in production secure will be true
 
 async function run() {
     try {
-        // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
-        // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
         const database = client.db('PraniGhor')
         const petCollection = database.collection('pets')
         const categoryCollection = database.collection('categories')
@@ -46,7 +55,6 @@ async function run() {
         app.post('/create-payment-intent', async (req, res) => {
             const { price } = req.body
             const amount = parseInt(price * 100);
-            console.log(amount);
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: amount,
                 currency: 'usd',
@@ -85,16 +93,14 @@ async function run() {
             const user = req.body
             const token = jwt.sign(user, process.env.SECRET_KEY, { expiresIn: '1h' })
             res
-                .cookie('token', token, {
-                    httpOnly: true,
-                    secure: true,
-                    sameSite: 'none',
-                })
+                .cookie('token', token, cookieOptions)
                 .send({ success: true })
         })
         app.post('/logout', async (req, res) => {
             const user = req.body
-            res.clearCookie('token', { maxAge: 0 }).send({ success: true })
+            res
+                .clearCookie("token", { ...cookieOptions, maxAge: 0 })
+                .send({ success: true });
         })
         //donations
         app.post('/donations', verifyToken, async (req, res) => {
@@ -109,10 +115,10 @@ async function run() {
             if (req.user?.email !== req.query?.email) {
                 return res.status(403).send({ message: "Forbidden Access" })
             }
-            const query = req.query.email
-            if (query) {
-                const result = await donationCollection.find({})
-            }
+            console.log(req.query?.email);
+            const query = { donorEmail: req.query.email }
+            const result = await donationCollection.find(query).toArray()
+            res.send(result)
         })
         app.get('/donations/:id', async (req, res) => {
             const query = { campaignId: req.params.id }
