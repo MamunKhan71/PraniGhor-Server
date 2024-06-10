@@ -97,17 +97,28 @@ async function run() {
             res.clearCookie('token', { maxAge: 0 }).send({ success: true })
         })
         //donations
-        app.post('/donations', async (req, res) => {
+        app.post('/donations', verifyToken, async (req, res) => {
+            if (req.user?.email !== req.query?.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
             const data = req.body
             const result = await donationCollection.insertOne(data)
             res.send(result)
         })
-        // app.get('/donations', async (req, res) => {
-        //     const query = req.query.email
-        //     if(query){
-        //         const result = await donationCollection.find({})
-        //     }
-        // })
+        app.get('/my-donations', verifyToken, async (req, res) => {
+            if (req.user?.email !== req.query?.email) {
+                return res.status(403).send({ message: "Forbidden Access" })
+            }
+            const query = req.query.email
+            if (query) {
+                const result = await donationCollection.find({})
+            }
+        })
+        app.get('/donations/:id', async (req, res) => {
+            const query = { campaignId: req.params.id }
+            const result = await donationCollection.find(query).toArray()
+            res.send(result)
+        })
         // users
         app.patch('/make-admin', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.body.id
